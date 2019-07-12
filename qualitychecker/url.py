@@ -9,7 +9,23 @@ import re
 
 
 class URL:
+    """Hold information about a remote resource identified by a URL."""
+
     def __init__(self, uri, offline=False):
+        """Create a new URL object and process the future required information.
+
+        Keyword Arguments:
+        -----------------
+        uri -- The URI of the resource
+        offline -- Tells the object to avoid accesing the URI.
+                    Mostly used for dev purposes
+
+        Attention:
+        ---------
+        It tries to access the resource on creation so avoid
+        multiple instanciations.
+
+        """
         self.uri = uri
         self.head = None
         self.accessibility = None
@@ -23,15 +39,33 @@ class URL:
         self._checkOnline()
 
     def isValid(self):
+        """Return a boolean telling if the URI is well formed."""
         return self.valid
 
     def isAccesible(self):
+        """Return a ~qualitychecker.URL.AccessInfo object.
+
+        The object evaluates as True if the resource is available
+        and as False if it is not. It also contains the relevant information
+        about the accesibility of the URI.
+        """
         return self.accessibility
 
     def getAccessibility(self):
+        """Return a ~qualitychecker.URL.AccessInfo object.
+
+        It contains the relevant information about the accesibility of the URI.
+        It also evaluates as True if the resource is available and as False if
+        it is not.
+        """
         return self.isAccesible()
 
     def getType(self):
+        """Return a ~qualitychecker.URL.TypeInfo or None if resource not found.
+
+        It contains the relevant information about the type of the resource if
+        it is available.
+        """
         return self.type
 
     def _checkValid(self):
@@ -84,22 +118,74 @@ class URL:
 
 
 class TypeInfo:
+    """Contains information about the type of the resource.
+
+    Attributes:
+    ----------
+    magic -- The type based on the actual resource content
+    http -- The type based on the HTTP header 'Content-Type'
+    extension -- The type based on the file extension's name
+
+    """
+
     def __init__(self, magic, http, extension):
+        """Create a new TypeInfo object.
+
+        Keyword Arguments:
+        -----------------
+        magic -- The type based on the actual resource content
+        http -- The type based on the HTTP header 'Content-Type'
+        extension -- The type based on the file extension's name
+
+        """
         self.magic = magic
         self.http = http
         self.extension = extension
 
 
 class AccessInfo:
+    """Contains information about the accesibility of the resource.
+
+    Attributes:
+    ----------
+    status -- The HTTP status sent by the server. Can be None.
+    reason -- The reason that caused an error (if error).
+    isAccesible -- Boolean that tells if the resource is accesible
+    sslError -- Boolean that tells if there was a problem with SSL
+
+    """
+
     def __init__(
         self, status=None, reason="ok", accesible=True, ssl_error=False
     ):
+        """Create a new AccessInfo object.
+
+        Keyword Arguments:
+        -----------------
+        status -- The HTTP status sent by the server. Can be None.
+        reason -- The reason that caused an error (if error).
+        isAccesible -- Boolean that tells if the resource is accesible
+        sslError -- Boolean that tells if there was a problem with SSL
+
+        """
         self.status = status
         self.reason = reason
         self.isAccesible = accesible
         self.sslError = ssl_error
 
     def __bool__(self):
+        """Allow to evaluate the whole object as a boolean.
+
+        Example:
+        -------
+        >>> info = AccessInfo(accesible=False)
+        >>> if (info):
+        >>>     print('YES')
+        >>> else:
+        >>>     print('NO')
+        NO
+
+        """
         return self.isAccesible
 
 
