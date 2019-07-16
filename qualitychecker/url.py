@@ -4,8 +4,18 @@ from urllib.request import urlopen
 from urllib.parse import urlparse
 from urllib.error import URLError, HTTPError
 from ssl import create_default_context, CERT_NONE, SSLError
-from magic import Magic, MAGIC_MIME_TYPE  # pip install filemagic==1.6
 import re
+
+try:
+    from magic import Magic, MAGIC_MIME_TYPE  # pip install filemagic==1.6
+
+    MAGIC_ENABLED = True
+except ImportError:
+    print(
+        "WARNING: You are not using FileMagic type checking.",
+        "Check libmagic dependencies on your system",
+    )
+    MAGIC_ENABLED = False
 
 
 class URL:
@@ -109,12 +119,17 @@ class URL:
                 path = urlparse(connection.url).path
                 extension = path.split(".")[-1]
 
-            with Magic(flags=MAGIC_MIME_TYPE) as m:
-                self.type = TypeInfo(
-                    magic=m.id_buffer(self.head),
-                    http=connection.getheader("content-type"),
-                    extension=extension,
-                )
+            if MAGIC_ENABLED:
+                with Magic(flags=MAGIC_MIME_TYPE) as m:
+                    magicType = m.id_buffer(self.head)
+            else:
+                magicType = None
+
+            self.type = TypeInfo(
+                magic=magicType,
+                http=connection.getheader("content-type"),
+                extension=extension,
+            )
 
 
 class TypeInfo:
