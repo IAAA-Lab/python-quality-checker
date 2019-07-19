@@ -95,6 +95,10 @@ class URL:
                 self.accessibility = AccessInfo(
                     status=None, reason=e.reason, accesible=False
                 )
+        except Exception as e:
+            self.accessibility = AccessInfo(
+                status=None, reason=e, accesible=False
+            )
 
     def _download(self, ssl=True):
 
