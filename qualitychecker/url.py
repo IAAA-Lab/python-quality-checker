@@ -9,19 +9,17 @@ import re
 try:
     from magic import Magic, MAGIC_MIME_TYPE  # pip install filemagic==1.6
 
-    MAGIC_ENABLED = True
+    LIB_MAGIC = True
 except ImportError:
-    print(
-        "WARNING: You are not using FileMagic type checking.",
-        "Check libmagic dependencies on your system",
-    )
-    MAGIC_ENABLED = False
+    from winmagic import magic  # pip install python-magic-win64
+
+    LIB_MAGIC = False
 
 
 class URL:
     """Hold information about a remote resource identified by a URL."""
 
-    def __init__(self, uri, offline=False):
+    def __init__(self, uri, offline=False, timeout=2 * 60):
         """Create a new URL object and process the future required information.
 
         Keyword Arguments:
@@ -37,9 +35,9 @@ class URL:
 
         """
         self.uri = uri
-        self.head = None
         self.accessibility = None
         self.type = None
+        self._timeout = timeout
 
         self._checkValid()
 
@@ -81,16 +79,16 @@ class URL:
     def _checkValid(self):
         self.valid = pattern.match(self.uri)
 
-    def _checkOnline(self):
+    def _checkOnline(self, ssl=True):
         try:
-            self._download()
+            self._download(ssl=ssl)
         except HTTPError as e:
             self.accessibility = AccessInfo(
                 status=e.code, reason=e.reason, accesible=False
             )
         except URLError as e:
-            if type(e.reason) is SSLError:
-                self._download(ssl=False)
+            if type(e.reason) is SSLError and ssl is True:
+                self._checkOnline(ssl=False)
             else:
                 self.accessibility = AccessInfo(
                     status=None, reason=e.reason, accesible=False
@@ -100,15 +98,17 @@ class URL:
                 status=None, reason=e, accesible=False
             )
 
-    def _download(self, ssl=True):
+    def _download(self, ssl):
 
         ctx = create_default_context()
         if not ssl:
             ctx.check_hostname = False
             ctx.verify_mode = CERT_NONE
 
-        with urlopen(self.uri, context=ctx) as connection:
-            self.head = connection.read(1024)
+        with urlopen(
+            self.uri, timeout=self._timeout, context=ctx
+        ) as connection:
+            head = connection.read(1024)
             self.accessibility = AccessInfo(
                 status=connection.status,
                 reason=connection.reason,
@@ -123,17 +123,21 @@ class URL:
                 path = urlparse(connection.url).path
                 extension = path.split(".")[-1]
 
-            if MAGIC_ENABLED:
+            if LIB_MAGIC:
                 with Magic(flags=MAGIC_MIME_TYPE) as m:
-                    magicType = m.id_buffer(self.head)
+                    magicType = m.id_buffer(head)
             else:
-                magicType = None
+                magicType = magic.from_buffer(head)
 
             self.type = TypeInfo(
                 magic=magicType,
                 http=connection.getheader("content-type"),
                 extension=extension,
             )
+
+    def __str__(self):
+        """Serialices object to CSV/TSV."""
+        return "\t".join([self.uri, str(self.accessibility), str(self.type)])
 
 
 class TypeInfo:
@@ -160,6 +164,10 @@ class TypeInfo:
         self.magic = magic
         self.http = http
         self.extension = extension
+
+    def __str__(self):
+        """Serialices object to CSV/TSV."""
+        return "\t".join([self.magic, self.http, self.extension])
 
 
 class AccessInfo:
@@ -191,6 +199,17 @@ class AccessInfo:
         self.reason = reason
         self.isAccesible = accesible
         self.sslError = ssl_error
+
+    def __str__(self):
+        """Serialices object to CSV/TSV."""
+        return "\t".join(
+            [
+                str(self.status),
+                self.reason,
+                str(self.isAccesible),
+                str(self.sslError),
+            ]
+        )
 
     def __bool__(self):
         """Allow to evaluate the whole object as a boolean.
