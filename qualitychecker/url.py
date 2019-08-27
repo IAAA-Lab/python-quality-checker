@@ -16,6 +16,10 @@ except ImportError:
     LIB_MAGIC = False
 
 
+def _cln(string):
+    return str(string).replace("\n", "")
+
+
 class URL:
     """Hold information about a remote resource identified by a URL."""
 
@@ -35,8 +39,8 @@ class URL:
 
         """
         self.uri = uri
-        self.accessibility = None
-        self.type = None
+        self.accessibility = AccessInfo()
+        self.type = TypeInfo()
         self._timeout = timeout
 
         self._checkValid()
@@ -84,18 +88,24 @@ class URL:
             self._download(ssl=ssl)
         except HTTPError as e:
             self.accessibility = AccessInfo(
-                status=e.code, reason=e.reason, accesible=False
+                status=e.code,
+                reason=e.reason,
+                accesible=False,
+                ssl_error=False,
             )
         except URLError as e:
             if type(e.reason) is SSLError and ssl is True:
                 self._checkOnline(ssl=False)
             else:
                 self.accessibility = AccessInfo(
-                    status=None, reason=e.reason, accesible=False
+                    status=None,
+                    reason=e.reason,
+                    accesible=False,
+                    ssl_error=False,
                 )
         except Exception as e:
             self.accessibility = AccessInfo(
-                status=None, reason=e, accesible=False
+                status=None, reason=e, accesible=False, ssl_error=False
             )
 
     def _download(self, ssl):
@@ -112,6 +122,7 @@ class URL:
             self.accessibility = AccessInfo(
                 status=connection.status,
                 reason=connection.reason,
+                accesible=True,
                 ssl_error=not ssl,
             )
 
@@ -135,9 +146,22 @@ class URL:
                 extension=extension,
             )
 
+    def dict(self):
+        """Return the object as a dict."""
+        return {
+            "uri": _cln(self.uri),
+            "accessibility_status": _cln(self.accessibility.status),
+            "accessibility_reason": _cln(self.accessibility.reason),
+            "accessibility_isAccesible": _cln(self.accessibility.isAccesible),
+            "accessibility_sslError": _cln(self.accessibility.sslError),
+            "type_magic": _cln(self.type.magic),
+            "type_http": _cln(self.type.http),
+            "type_extension": _cln(self.type.extension),
+        }
+
     def __str__(self):
         """Serialices object to CSV/TSV."""
-        return "\t".join([self.uri, str(self.accessibility), str(self.type)])
+        return "\t".join(self.dict().values())
 
 
 class TypeInfo:
@@ -151,7 +175,7 @@ class TypeInfo:
 
     """
 
-    def __init__(self, magic, http, extension):
+    def __init__(self, magic=None, http=None, extension=None):
         """Create a new TypeInfo object.
 
         Keyword Arguments:
@@ -164,10 +188,6 @@ class TypeInfo:
         self.magic = magic
         self.http = http
         self.extension = extension
-
-    def __str__(self):
-        """Serialices object to CSV/TSV."""
-        return "\t".join([self.magic, self.http, self.extension])
 
 
 class AccessInfo:
@@ -183,7 +203,7 @@ class AccessInfo:
     """
 
     def __init__(
-        self, status=None, reason="ok", accesible=True, ssl_error=False
+        self, status=None, reason=None, accesible=None, ssl_error=None
     ):
         """Create a new AccessInfo object.
 
@@ -199,17 +219,6 @@ class AccessInfo:
         self.reason = reason
         self.isAccesible = accesible
         self.sslError = ssl_error
-
-    def __str__(self):
-        """Serialices object to CSV/TSV."""
-        return "\t".join(
-            [
-                str(self.status),
-                self.reason,
-                str(self.isAccesible),
-                str(self.sslError),
-            ]
-        )
 
     def __bool__(self):
         """Allow to evaluate the whole object as a boolean.
