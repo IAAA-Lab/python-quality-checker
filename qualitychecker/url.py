@@ -81,7 +81,7 @@ class URL:
         return self.type
 
     def _checkValid(self):
-        return pattern.match(self.uri)
+        return bool(pattern.match(self.uri))
 
     def _checkOnline(self, ssl=True):
         try:
