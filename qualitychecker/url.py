@@ -43,7 +43,7 @@ class URL:
         self.type = TypeInfo()
         self._timeout = timeout
 
-        self._checkValid()
+        self.valid = self._checkValid()
 
         if offline:
             return
@@ -81,7 +81,7 @@ class URL:
         return self.type
 
     def _checkValid(self):
-        self.valid = pattern.match(self.uri)
+        return pattern.match(self.uri)
 
     def _checkOnline(self, ssl=True):
         try:
@@ -150,6 +150,7 @@ class URL:
         """Return the object as a dict."""
         return {
             "uri": _cln(self.uri),
+            "validity": _cln(self.valid),
             "accessibility_status": _cln(self.accessibility.status),
             "accessibility_reason": _cln(self.accessibility.reason),
             "accessibility_isAccesible": _cln(self.accessibility.isAccesible),
